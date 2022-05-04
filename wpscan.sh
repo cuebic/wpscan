@@ -38,14 +38,14 @@ mysql mainwp-prd -B -N -e 'select wpid, value from wp_mainwp_wp_options where na
 if [[ -f wpscan_wordpresses_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_wordpresses_api.result
 fi
-cat cores.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/core.list
-cat core.list | while read version; do
+cat ${OUTDIR}/cores.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/core.list
+cat ${OUTDIR}/core.list | while read version; do
   format_version=$(echo ${version} | sed 's/\.//g')
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/wordpresses/${format_version} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_wordpresses_api.result
 done
 echo -e "version\tfixed_in\ttitle" >${OUTDIR}/core_vuls.tsv
-cat wpscan_wordpresses_api.result | while read -r line; do
+cat ${OUTDIR}/wpscan_wordpresses_api.result | while read -r line; do
   version=$(echo ${line} | jq -rs '.[] | keys[]')
   echo ${line} | jq .\"${version}\" | jq -r 'select(.vulnerabilities? | length > 0) | .vulnerabilities[] | [.title, .fixed_in] | @tsv' |
     while IFS=$'\t' read -r title fixedin; do
@@ -71,14 +71,14 @@ mysql mainwp-prd -B -N -r -e 'select id, plugins from wp_mainwp_wp order by id' 
 if [[ -f wpscan_plugins_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_plugins_api.result
 fi
-cat plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list
-cat plugin.list | while read slug; do
+cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list
+cat ${OUTDIR}/plugin.list | while read slug; do
   echo ${slug}
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/plugins/${slug} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_plugins_api.result
 done
 echo -e "slug\tlatest\tfixed_in\ttitle\tcve_id" >${OUTDIR}/plugin_vuls.tsv
-cat wpscan_plugins_api.result | while read -r line; do
+cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
   slug=$(echo ${line} | jq -rs '.[] | keys[]')
   friendly_name=$(echo ${line} | jq .\"${slug}\" | jq 'select(.friendly_name? | length > 0) | .friendly_name')
   if [[ ${friendly_name} == "" ]]; then
@@ -117,13 +117,13 @@ done
 if [[ -f cve_api.result ]]; then
   rm -f ${OUTDIR}/cve_api.result
 fi
-cat plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nodata/d' -e '/^$/d' | sort | uniq |
+cat ${OUTDIR}/plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nodata/d' -e '/^$/d' | sort | uniq |
   while read cve; do
     echo $(curl -s ${CVE_URL}/CVE-${cve}) | sed 's/\\\u\(....\)/\&#x\1;/g' |
       nkf --numchar-input -w | jq -cr --arg cve "${cve}" '{($cve): .}' >>${OUTDIR}/cve_api.result
   done
 echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv
-cat cve_api.result | while read -r line; do
+cat ${OUTDIR}/cve_api.result | while read -r line; do
   cve=$(echo ${line} | jq -rs '.[] | keys[]')
   items=$(echo ${line} | jq .\"${cve}\" | jq -r '.result.CVE_Items')
   if [[ ${items} == "null" ]]; then
