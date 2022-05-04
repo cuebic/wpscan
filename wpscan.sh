@@ -73,7 +73,6 @@ if [[ -f wpscan_plugins_api.result ]]; then
 fi
 cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list
 cat ${OUTDIR}/plugin.list | while read slug; do
-  echo ${slug}
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/plugins/${slug} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_plugins_api.result
 done
