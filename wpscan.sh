@@ -122,7 +122,7 @@ cat plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nodata/d' -e 
     echo $(curl -s ${CVE_URL}/CVE-${cve}) | sed 's/\\\u\(....\)/\&#x\1;/g' |
       nkf --numchar-input -w | jq -cr --arg cve "${cve}" '{($cve): .}' >>${OUTDIR}/cve_api.result
   done
-echo -e "cve_id\tscore" >cve.tsv
+echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv
 cat cve_api.result | while read -r line; do
   cve=$(echo ${line} | jq -rs '.[] | keys[]')
   items=$(echo ${line} | jq .\"${cve}\" | jq -r '.result.CVE_Items')
