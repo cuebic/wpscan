@@ -4,17 +4,13 @@ set -e -o pipefail
 
 SCRIPT_NAME=$(dir ${0})
 WPSCAN_API_KEY=${1}
-DATE=${2}
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 OUTDIR="output"
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
   echo "Require WPSCAN API KEY!"
-fi
-
-if [[ ${DATE} == "" ]]; then
-  echo "Require DATE!"
+  exit 1
 fi
 
 ##############################
