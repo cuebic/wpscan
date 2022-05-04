@@ -1,2 +1,4 @@
 .vscode
-output/*
+output/*.list
+output/*.result
+output/*.tsv
