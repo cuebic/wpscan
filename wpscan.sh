@@ -2,7 +2,6 @@
 
 set -e -o pipefail
 
-WPSCAN_API_KEY=${1}
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 DATE=$(date '+%Y%m%d_%H%M%S')
