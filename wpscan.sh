@@ -2,16 +2,19 @@
 
 set -e -o pipefail
 
-SCRIPT_NAME=$(dir ${0})
 WPSCAN_API_KEY=${1}
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
-OUTDIR="output"
+DATE=$(date '+%Y%m%d_%H%M%S')
+OUTDIR="output/${DATE}"
+# OUTDIR="output" # debug
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
   echo "Require WPSCAN API KEY!"
   exit 1
 fi
+
+mkdir -p ${OUTDIR}
 
 ##############################
 ## mainwp medias.tsv
@@ -33,7 +36,7 @@ mysql mainwp-prd -B -N -e 'select wpid, value from wp_mainwp_wp_options where na
   done
 
 ##############################
-# wpscan core_vuls.tsv
+## wpscan core_vuls.tsv
 ##############################
 if [[ -f wpscan_wordpresses_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_wordpresses_api.result
@@ -66,7 +69,7 @@ mysql mainwp-prd -B -N -r -e 'select id, plugins from wp_mainwp_wp order by id' 
   done
 
 ##############################
-# wpscan plugin_vuls.tsv
+## wpscan plugin_vuls.tsv
 ##############################
 if [[ -f wpscan_plugins_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_plugins_api.result
@@ -84,7 +87,7 @@ cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
     continue
   fi
   latest=$(echo ${line} | jq .\"${slug}\" | jq -r 'select(.latest_version? | length > 0) | .latest_version')
-  if [[ ${latest} == "null" ]]; then
+  if [[ ${latest} == "" ]]; then
     latest="nodata"
   fi
   vuls=$(echo ${line} | jq .\"${slug}\" | jq -rc 'select(.vulnerabilities? | length > 0) | .vulnerabilities')
@@ -95,7 +98,7 @@ cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
   echo ${vuls} | jq -r '.[] | select(.title? | length > 0) | [.title, .fixed_in] | @tsv' |
     while IFS=$'\t' read -r title fixedin; do
       vul=$(echo ${vuls} | jq -c --arg title "${title}" '.[] | select(.title == $title)')
-      if [[ ${fixedin} == "null" ]]; then
+      if [[ ${fixedin} == "" ]]; then
         fixedin="nodata"
       fi
       cves=$(echo ${vul} | jq 'select(.references? | length > 0) | .references | select(.cve? | length > 0) | .cve')
@@ -111,7 +114,7 @@ cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
 done
 
 ##############################
-# cve.tsv
+## cve.tsv
 ##############################
 if [[ -f cve_api.result ]]; then
   rm -f ${OUTDIR}/cve_api.result
@@ -134,12 +137,114 @@ cat ${OUTDIR}/cve_api.result | while read -r line; do
   fi
   if [[ ${score} == "null" ]]; then
     score="nodata"
-  else
-    if [[ ${#score} < 2 ]]; then
-      score="${score}.0"
-    fi
   fi
   echo -e "${cve}\t${score}" >>${OUTDIR}/cve.tsv
 done
+
+##############################
+## vulnerabilities.tsv
+##############################
+if [[ -f ${OUTDIR}/vulnerabilities.tsv ]]; then
+  rm -f ${OUTDIR}/vulnerabilities.tsv
+fi
+while IFS=$'\t' read -r wpid name url; do
+  while IFS=$'\t' read -r cores_wpid cores_version; do
+    if [[ ${cores_wpid} == ${wpid} ]]; then
+      core_version=${cores_version}
+      break
+    fi
+  done < <(cat ${OUTDIR}/cores.tsv)
+  while IFS=$'\t' read -r core_vuls_version core_vuls_fixedin core_vuls_title; do
+    if [[ ${core_vuls_version} == ${core_version} ]]; then
+      core_fixedin=${core_vuls_fixedin}
+      core_title=${core_vuls_title}
+      if [[ ${core_version} == "nodata" || ${core_fixedin} == "nodata" ]]; then
+        continue
+      fi
+      format_core_version=$(echo ${core_version} | sed 's/\.//g')
+      format_core_fixedin=$(echo ${core_fixedin} | sed 's/\.//g')
+      if [[ ${format_core_version} == ${format_core_fixedin} ]]; then
+        continue
+      fi
+      digits_core_version=${#format_core_version}
+      digits_core_fixedin=${#format_core_fixedin}
+      splits_core_version=(${core_version//\./ })
+      splits_core_fixedin=(${core_fixedin//\./ })
+      flag="true"
+      if ((digits_core_version == digits_core_fixedin)); then
+        digits=$((digits_core_version - 1))
+      elif ((digits_core_version < digits_core_fixedin)); then
+        digits=$((digits_core_version - 1))
+      else
+        digits=$((digits_core_fixedin - 1))
+      fi
+      for i in $(seq 0 ${digits}); do
+        if ((splits_core_version[i] == splits_core_fixedin[i])); then
+          continue
+        fi
+        if ((splits_core_version[i] > splits_core_fixedin[i])); then
+          flag="false"
+          break
+        fi
+      done
+      if [[ ${flag} == "true" ]]; then
+        echo -e "${wpid}\t${name}\t${url}\tcore\tnodata\t${core_version}\t${core_fixedin}\t${core_title}\tnodata\tnodata" >>${OUTDIR}/vulnerabilities.tsv
+      fi
+    fi
+  done < <(cat ${OUTDIR}/core_vuls.tsv)
+  while IFS=$'\t' read -r plugins_wpid plugins_slug plugins_version; do
+    if [[ ${plugins_wpid} == ${wpid} ]]; then
+      plugin_slug=${plugins_slug}
+      plugin_version=${plugins_version}
+      while IFS=$'\t' read -r plugin_vuls_slug plugin_vuls_latest plugin_vuls_fixedin plugin_vuls_title plugin_vuls_cve_id; do
+        if [[ ${plugin_vuls_slug} == ${plugin_slug} ]]; then
+          plugin_latest=${plugin_vuls_latest}
+          plugin_fixedin=${plugin_vuls_fixedin}
+          plugin_title=${plugin_vuls_title}
+          plugin_cve_id=${plugin_vuls_cve_id}
+          if [[ ${plugin_version} == "nodata" || ${plugin_fixedin} == "nodata" ]]; then
+            continue
+          fi
+          set +e
+          cve_score=$(cat ${OUTDIR}/cve.tsv | sed '1d' | grep "${plugin_cve_id}" | awk -F"\t" '{ print $2 }')
+          set -e
+          if [[ ${cve_score} == "" ]]; then
+            cve_score="nodata"
+          fi
+          format_plugin_version=$(echo ${plugin_version} | sed 's/\.//g')
+          format_plugin_fixedin=$(echo ${plugin_fixedin} | sed 's/\.//g')
+          if [[ ${format_plugin_version} == ${format_plugin_fixedin} ]]; then
+            continue
+          fi
+          digits_plugin_version=${#format_plugin_version}
+          digits_plugin_fixedin=${#format_plugin_fixedin}
+          splits_plugin_version=(${plugin_version//\./ })
+          splits_plugin_fixedin=(${plugin_fixedin//\./ })
+          flag="true"
+          if ((digits_plugin_version == digits_plugin_fixedin)); then
+            digits=$((digits_plugin_version - 1))
+          elif ((digits_plugin_version < digits_plugin_fixedin)); then
+            digits=$((digits_plugin_version - 1))
+          else
+            digits=$((digits_plugin_fixedin - 1))
+          fi
+          for i in $(seq 0 ${digits}); do
+            if ((splits_plugin_version[i] == splits_plugin_fixedin[i])); then
+              continue
+            fi
+            if ((splits_plugin_version[i] > splits_plugin_fixedin[i])); then
+              flag="false"
+              break
+            fi
+          done
+          if [[ ${flag} == "true" ]]; then
+            echo -e "${wpid}\t${name}\t${url}\tplugin\t${plugin_slug}\t${plugin_version}\t${plugin_fixedin}\t${plugin_title}\t${plugin_cve_id}\t${cve_score}" >>${OUTDIR}/vulnerabilities.tsv
+          fi
+          break
+        fi
+      done < <(cat ${OUTDIR}/plugin_vuls.tsv | sed '1d')
+    fi
+  done < <(cat ${OUTDIR}/plugins.tsv | sed '1d')
+done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
 
 exit 0

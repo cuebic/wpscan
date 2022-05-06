@@ -1,4 +1,4 @@
 .vscode
-output/*.list
-output/*.result
-output/*.tsv
+output/
+!output/.keep
+cuebic-media-*.json
