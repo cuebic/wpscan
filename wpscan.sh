@@ -4,7 +4,7 @@ set -e -o pipefail
 
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
-DATE=$(date '+%Y%m%d_%H%M%S')
+DATE=$(date '+%Y%m%d')
 OUTDIR="output/${DATE}"
 # OUTDIR="output" # debug
 
