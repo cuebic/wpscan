@@ -5,7 +5,9 @@ set -e -o pipefail
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 DATE=$(date '+%Y%m%d')
+DIR_NAME="output"
 OUTDIR="output/${DATE}"
+S3_BUCKET="s3://cuebic-sre-wpscan"
 # OUTDIR="output" # debug
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
@@ -245,5 +247,10 @@ while IFS=$'\t' read -r wpid name url; do
     fi
   done < <(cat ${OUTDIR}/plugins.tsv | sed '1d')
 done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
+
+##############################
+## S3 Upload
+##############################
+aws s3 sync --delete --exclude=.keep ${DIR_NAME}/ ${S3_BUCKET}
 
 exit 0
