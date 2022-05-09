@@ -2,11 +2,12 @@
 
 set -e -o pipefail
 
+. ~/.bash_profile
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
-OUTDIR="output/${DATE}"
+OUTDIR="/home/ubuntu/wpscan/${DIR_NAME}/${DATE}"
 S3_BUCKET="s3://cuebic-sre-wpscan"
 # OUTDIR="output" # debug
 
@@ -251,6 +252,6 @@ done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
 ##############################
 ## S3 Upload
 ##############################
-aws s3 sync --delete --exclude=.keep ${DIR_NAME}/ ${S3_BUCKET}
+aws s3 sync --delete --exclude=.keep ~/wpscan/${DIR_NAME}/ ${S3_BUCKET}
 
 exit 0
