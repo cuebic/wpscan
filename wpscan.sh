@@ -252,6 +252,6 @@ done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
 ##############################
 ## S3 Upload
 ##############################
-aws s3 sync --delete --exclude=.keep /home/ubuntu/wpscan/${DIR_NAME}/ ${S3_BUCKET}
+/usr/local/bin/aws s3 sync --delete --exclude=.keep /home/ubuntu/wpscan/${DIR_NAME}/ ${S3_BUCKET}
 
 exit 0
