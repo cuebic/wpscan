@@ -8,7 +8,6 @@ WPSCAN_URL="https://wpscan.com/api/v3"
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
 OUTDIR="/home/ubuntu/wpscan/${DIR_NAME}/${DATE}"
-S3_BUCKET="s3://cuebic-sre-wpscan"
 # OUTDIR="output" # debug
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
@@ -252,6 +251,6 @@ done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
 ##############################
 ## S3 Upload
 ##############################
-/usr/local/bin/aws s3 sync --delete --exclude=.keep /home/ubuntu/wpscan/${DIR_NAME}/ ${S3_BUCKET}
+/usr/local/bin/aws s3 sync --delete --exclude=.keep /home/ubuntu/wpscan/${DIR_NAME}/ ${WPSCAN_S3_BUCKET}
 
 exit 0
