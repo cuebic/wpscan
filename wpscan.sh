@@ -122,7 +122,7 @@ if [[ -f cve_api.result ]]; then
 fi
 cat ${OUTDIR}/plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nodata/d' -e '/^$/d' | sort | uniq |
   while read cve; do
-    echo $(curl -s ${CVE_URL}/CVE-${cve}) | sed 's/\\\u\(....\)/\&#x\1;/g' |
+    echo $(curl -s "${CVE_URL}/CVE-${cve}?apiKey=${NVD_API_KEY}") | sed 's/\\\u\(....\)/\&#x\1;/g' |
       nkf --numchar-input -w | jq -cr --arg cve "${cve}" '{($cve): .}' >>${OUTDIR}/cve_api.result
   done
 echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv
