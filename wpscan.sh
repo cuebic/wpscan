@@ -8,6 +8,7 @@ WPSCAN_URL="https://wpscan.com/api/v3"
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
 OUTDIR="/home/ubuntu/wpscan/${DIR_NAME}/${DATE}"
+MYCNF="/home/ubuntu/.my.wpscan.cnf"
 # OUTDIR="output" # debug
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
@@ -21,13 +22,13 @@ mkdir -p ${OUTDIR}
 ## mainwp medias.tsv
 ##############################
 echo -e "wpid\tname\turl" >${OUTDIR}/medias.tsv
-mysql mainwp-prd -B -N -e 'select id, name, url from wp_mainwp_wp' >>${OUTDIR}/medias.tsv
+mysql mainwp-prd --defaults-file=${MYCNF} -B -N -e 'select id, name, url from wp_mainwp_wp' >>${OUTDIR}/medias.tsv
 
 ##############################
 ## mainwp cores.tsv
 ##############################
 echo -e "wpid\twp_version" >${OUTDIR}/cores.tsv
-mysql mainwp-prd -B -N -e 'select wpid, value from wp_mainwp_wp_options where name="last_wp_upgrades" order by wpid' |
+mysql mainwp-prd --defaults-file=${MYCNF} -B -N -e 'select wpid, value from wp_mainwp_wp_options where name="last_wp_upgrades" order by wpid' |
   while IFS=$'\t' read wpid option; do
     version=$(echo ${option} | jq -r 'select(.current? | length > 0) | .current')
     if [[ ${version} == "" ]]; then
@@ -61,7 +62,7 @@ done
 ## mainwp plugins.tsv
 ##############################
 echo -e "wpid\tslug\tversion" >${OUTDIR}/plugins.tsv
-mysql mainwp-prd -B -N -r -e 'select id, plugins from wp_mainwp_wp order by id' |
+mysql mainwp-prd --defaults-file=${MYCNF} -B -N -r -e 'select id, plugins from wp_mainwp_wp order by id' |
   while IFS=$'\t' read -r wpid plugins_json; do
     echo ${plugins_json} | jq -r '.[] | [(.slug | split("/") | .[0]), .version] | @tsv' |
       while IFS=$'\t' read -r slug version; do
