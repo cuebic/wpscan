@@ -1,4 +1,4 @@
 .vscode
-output/
+output/*
 !output/.keep
 cuebic-media-*.json
