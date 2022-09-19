@@ -1,0 +1,8 @@
+/var/log/wpscan/wpscan.log {
+        notifempty
+        missingok
+        copytruncate
+        daily
+        dateext
+        rotate 30
+}
