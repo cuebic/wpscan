@@ -15,14 +15,14 @@ DB_NAME="mainwp-prd"
 
 find ${DIR_PATH} -type d -mtime +180 | xargs -I{} rm -rf {}
 
-find /tmp/ -name 'wpscan_lock' -mmin +60 | xargs -I{} rm {}
+find ${DIR_PATH} -name 'wpscan_lock' -mmin +60 | xargs -I{} rm {}
 
-if [ -e /tmp/wpscan_lock ]; then
+if [ -e ${DIR_PATH}/wpscan_lock ]; then
         echo locked
         exit 1
 fi
 
-touch /tmp/wpscan_lock
+touch ${DIR_PATH}/wpscan_lock
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
   echo "Require WPSCAN API KEY!"
@@ -268,6 +268,6 @@ done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
 ##############################
 /usr/local/bin/aws s3 sync --delete --exclude=.keep ${DIR_PATH}/ ${WPSCAN_S3_BUCKET}
 
-rm /tmp/wpscan_lock
+rm ${DIR_PATH}/wpscan_lock
 
 exit 0
