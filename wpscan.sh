@@ -8,10 +8,13 @@ WPSCAN_URL="https://wpscan.com/api/v3"
 WPSCAN_S3_BUCKET="s3://cuebic-sre-wpscan"
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
-OUTDIR="/home/ubuntu/wpscan/${DIR_NAME}/${DATE}"
+DIR_PATH="/home/ubuntu/wpscan/${DIR_NAME}"
+OUTDIR="${DIR_PATH}/${DATE}"
 MYCNF="/home/ubuntu/.my.wpscan.cnf"
 DB_NAME="mainwp-prd"
 # OUTDIR="output" # debug
+
+find ${DIR_PATH} -type d -mtime +180 | xargs -I{} rm -rf {}
 
 if [[ ${WPSCAN_API_KEY} == "" ]]; then
   echo "Require WPSCAN API KEY!"
@@ -255,6 +258,6 @@ done < <(cat ${OUTDIR}/medias.tsv | sed '1d')
 ##############################
 ## S3 Upload
 ##############################
-/usr/local/bin/aws s3 sync --delete --exclude=.keep /home/ubuntu/wpscan/${DIR_NAME}/ ${WPSCAN_S3_BUCKET}
+/usr/local/bin/aws s3 sync --delete --exclude=.keep ${DIR_PATH}/ ${WPSCAN_S3_BUCKET}
 
 exit 0
