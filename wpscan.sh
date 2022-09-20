@@ -2,7 +2,6 @@
 
 set -e -o pipefail
 
-. ~/.bash_profile
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 WPSCAN_S3_BUCKET="s3://cuebic-sre-wpscan"
