@@ -12,16 +12,29 @@ WORDPRESS の脆弱性 TSV 形式でリスト化します。
 
 ## 定期実行
 
-スクリプトを実行するサーバで、次のように CRON の登録を行います。
+スクリプトを実行するサーバで、次のように ログディレクトリの作成と CRON の登録を行います。
+
+root ユーザで実行する。
 
 ```
-0 12 * * * /bin/bash /home/kusanagi/wpscan/wpscan.sh > /var/log/wpscan/wpscan.log
+mkdir /var/log/wpscan
+chown ubuntu:ubuntu /var/log/wpscan
+```
+
+ubuntu ユーザで実行する。
+
+```
+crontab -e
+
+0 12 * * * /bin/bash -l /home/kusanagi/wpscan/wpscan.sh > /var/log/wpscan/wpscan.log 2>&1
 ```
 
 ## ログローテーション
 
 スクリプトを実行するサーバで、次のようにログローテーションの登録を行います。
 
+root ユーザで実行する。
+
 ```
-sudo cp logrotate.d/wpscan /etc/logrotate.d/
+cp logrotate.d/wpscan /etc/logrotate.d/
 ```
