@@ -64,7 +64,7 @@ cat ${OUTDIR}/core.list | while read version; do
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/wordpresses/${format_version} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_wordpresses_api.result
   WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
-  if [[ $((WPSCAN_API_CALL_COUNT / WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
+  if [[ $((WPSCAN_API_CALL_COUNT % WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
     sleep 86400
   fi
 done
