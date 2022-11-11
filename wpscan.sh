@@ -5,6 +5,8 @@ set -e -o pipefail
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 WPSCAN_S3_BUCKET="s3://cuebic-sre-wpscan"
+WPSCAN_API_CALL_COUNT=0
+WPSCAN_API_CALL_LIMIT=70
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
 DIR_PATH="/home/ubuntu/wpscan/${DIR_NAME}"
@@ -61,6 +63,10 @@ cat ${OUTDIR}/core.list | while read version; do
   format_version=$(echo ${version} | sed 's/\.//g')
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/wordpresses/${format_version} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_wordpresses_api.result
+  WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
+  if [[ $((WPSCAN_API_CALL_COUNT / WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
+    sleep 86400
+  fi
 done
 echo -e "version\tfixed_in\ttitle" >${OUTDIR}/core_vuls.tsv
 cat ${OUTDIR}/wpscan_wordpresses_api.result | while read -r line; do
@@ -93,6 +99,10 @@ cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/
 cat ${OUTDIR}/plugin.list | while read slug; do
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/plugins/${slug} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_plugins_api.result
+  WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
+  if [[ $((WPSCAN_API_CALL_COUNT % WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
+    sleep 86400
+  fi
 done
 echo -e "slug\tlatest\tfixed_in\ttitle\tcve_id" >${OUTDIR}/plugin_vuls.tsv
 cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
