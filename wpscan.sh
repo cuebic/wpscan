@@ -21,8 +21,8 @@ find ${DIR_PATH} -type d -mtime +180 | xargs -I{} rm -rf {}
 find ${DIR_PATH} -name 'wpscan_lock' -mmin +60 | xargs -I{} rm {}
 
 if [ -e ${DIR_PATH}/wpscan_lock ]; then
-        echo locked
-        exit 1
+  echo locked
+  exit 1
 fi
 
 touch ${DIR_PATH}/wpscan_lock
@@ -105,7 +105,7 @@ cat ${OUTDIR}/plugin.list | while read slug; do
     sleep 86400
   fi
 done
-echo -e "slug\tlatest\tfixed_in\ttitle\tcve_id" >${OUTDIR}/plugin_vuls.tsv
+echo -e "slug\tlatest\tfixed_in\ttitle\tcve_id" >${OUTDIR}/plugin_vuls.tsv.tmp
 cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
   slug=$(echo ${line} | jq -rs '.[] | keys[]')
   friendly_name=$(echo ${line} | jq .\"${slug}\" | jq 'select(.friendly_name? | length > 0) | .friendly_name')
@@ -118,7 +118,7 @@ cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
   fi
   vuls=$(echo ${line} | jq .\"${slug}\" | jq -rc 'select(.vulnerabilities? | length > 0) | .vulnerabilities')
   if [[ ${vuls} = "" ]]; then
-    echo -e "${slug}\t${latest}\tnodata\tnodata\tnodata" >>${OUTDIR}/plugin_vuls.tsv
+    echo -e "${slug}\t${latest}\tnodata\tnodata\tnodata" >>${OUTDIR}/plugin_vuls.tsv.tmp
     continue
   fi
   echo ${vuls} | jq -r '.[] | select(.title? | length > 0) | [.title, .fixed_in] | @tsv' |
@@ -129,15 +129,17 @@ cat ${OUTDIR}/wpscan_plugins_api.result | while read -r line; do
       fi
       cves=$(echo ${vul} | jq 'select(.references? | length > 0) | .references | select(.cve? | length > 0) | .cve')
       if [[ $(echo ${cves} | jq '. | length') == "" ]]; then
-        echo -e "${slug}\t${latest}\t${fixedin}\t${title}\tnodata" >>${OUTDIR}/plugin_vuls.tsv
+        echo -e "${slug}\t${latest}\t${fixedin}\t${title}\tnodata" >>${OUTDIR}/plugin_vuls.tsv.tmp
         continue
       fi
       echo ${cves} | jq -r '.[]' |
         while read cve; do
-          echo -e "${slug}\t${latest}\t${fixedin}\t${title}\t${cve}" >>${OUTDIR}/plugin_vuls.tsv
+          echo -e "${slug}\t${latest}\t${fixedin}\t${title}\t${cve}" >>${OUTDIR}/plugin_vuls.tsv.tmp
         done
     done
 done
+sort ${OUTDIR}/plugin_vuls.tsv.tmp | uniq >${OUTDIR}/plugin_vuls.tsv
+rm -f ${OUTDIR}/plugin_vuls.tsv.tmp
 
 ##############################
 ## cve.tsv
@@ -151,7 +153,7 @@ cat ${OUTDIR}/plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nod
       nkf --numchar-input -w | jq -cr --arg cve "${cve}" '{($cve): .}' >>${OUTDIR}/cve_api.result
     sleep 6 # https://nvd.nist.gov/general/news/API-Key-Announcement
   done
-echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv
+echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv.tmp
 cat ${OUTDIR}/cve_api.result | while read -r line; do
   cve=$(echo ${line} | jq -rs '.[] | keys[]')
   items=$(echo ${line} | jq .\"${cve}\" | jq -r '.result.CVE_Items')
@@ -165,8 +167,10 @@ cat ${OUTDIR}/cve_api.result | while read -r line; do
   if [[ ${score} == "null" ]]; then
     score="nodata"
   fi
-  echo -e "${cve}\t${score}" >>${OUTDIR}/cve.tsv
+  echo -e "${cve}\t${score}" >>${OUTDIR}/cve.tsv.tmp
 done
+sort ${OUTDIR}/cve.tsv.tmp | uniq >cve.tsv
+rm -f ${OUTDIR}/cve.tsv.tmp
 
 ##############################
 ## vulnerabilities.tsv
