@@ -6,7 +6,7 @@ CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 WPSCAN_S3_BUCKET="s3://cuebic-sre-wpscan"
 WPSCAN_API_CALL_COUNT=0
-WPSCAN_API_CALL_LIMIT=80 # WPSCAN API 100 $B%j%/%(%9%H(B / $BF|(B $BBP1~(B($BM>M5$r8+$F(B 80 $B$K@_Dj(B)
+WPSCAN_API_CALL_LIMIT=80 # WPSCAN API 100 リクエスト / 日 対応(余裕を見て 80 に設定)
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
 DIR_PATH="/home/ubuntu/wpscan/${DIR_NAME}"
@@ -63,14 +63,14 @@ mysql --defaults-file=${MYCNF} -B -N -e 'select wpid, value from wp_mainwp_wp_op
 if [[ -f wpscan_wordpresses_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_wordpresses_api.result
 fi
-cat ${OUTDIR}/cores.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/core.list # $B=EJ#$r%^!<%8(B
+cat ${OUTDIR}/cores.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/core.list # 重複をマージ
 cat ${OUTDIR}/core.list | while read version; do
   format_version=$(echo ${version} | sed 's/\.//g')
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/wordpresses/${format_version} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_wordpresses_api.result
   WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
   if [[ $((WPSCAN_API_CALL_COUNT % WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
-    sleep 86400 # WPSCAN API 100 $B%j%/%(%9%H(B / $BF|(B $BBP1~(B
+    sleep 86400 # WPSCAN API 100 リクエスト / 日 対応
   fi
 done
 echo -e "version\tfixed_in\ttitle" >${OUTDIR}/core_vuls.tsv
@@ -100,13 +100,13 @@ mysql --defaults-file=${MYCNF} -B -N -r -e 'select id, plugins from wp_mainwp_wp
 if [[ -f wpscan_plugins_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_plugins_api.result
 fi
-cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list # $B=EJ#$r%^!<%8(B
+cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list # 重複をマージ
 cat ${OUTDIR}/plugin.list | while read slug; do
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/plugins/${slug} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_plugins_api.result
   WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
   if [[ $((WPSCAN_API_CALL_COUNT % WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
-    sleep 86400 # WPSCAN API 100 $B%j%/%(%9%H(B / $BF|(B $BBP1~(B
+    sleep 86400 # WPSCAN API 100 リクエスト / 日 対応
   fi
 done
 echo -e "slug\tlatest\tfixed_in\ttitle\tcve_id" >${OUTDIR}/plugin_vuls.tsv.tmp
