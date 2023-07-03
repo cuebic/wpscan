@@ -6,15 +6,13 @@ CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
 WPSCAN_S3_BUCKET="s3://cuebic-sre-wpscan"
 WPSCAN_API_CALL_COUNT=0
-WPSCAN_API_CALL_LIMIT=70
+WPSCAN_API_CALL_LIMIT=80 # WPSCAN API 100 リクエスト / 日 対応(余裕を見て 80 に設定)
 DATE=$(date '+%Y%m%d')
 DIR_NAME="output"
 DIR_PATH="/home/ubuntu/wpscan/${DIR_NAME}"
-#OUTDIR="${DIR_PATH}/${DATE}"
 OUTDIR="${DIR_PATH}/result"
 MYCNF="/home/ubuntu/.my.wpscan.cnf"
 DB_NAME="mainwp-prd"
-# OUTDIR="output" # debug
 
 find ${DIR_PATH} -type d -mtime +180 | xargs -I{} rm -rf {}
 
@@ -41,6 +39,12 @@ echo -e "wpid\tname\turl" >${OUTDIR}/medias.tsv
 mysql --defaults-file=${MYCNF} -B -N -e 'select id, name, url from wp_mainwp_wp' ${DB_NAME} >>${OUTDIR}/medias.tsv
 
 ##############################
+## exclude media
+##############################
+/usr/local/bin/aws s3 cp ${WPSCAN_S3_BUCKET}/exclude_list.tsv ${OUTDIR}/exclude_list.tsv
+
+
+##############################
 ## mainwp cores.tsv
 ##############################
 echo -e "wpid\twp_version" >${OUTDIR}/cores.tsv
@@ -59,14 +63,14 @@ mysql --defaults-file=${MYCNF} -B -N -e 'select wpid, value from wp_mainwp_wp_op
 if [[ -f wpscan_wordpresses_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_wordpresses_api.result
 fi
-cat ${OUTDIR}/cores.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/core.list
+cat ${OUTDIR}/cores.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/core.list # 重複をマージ
 cat ${OUTDIR}/core.list | while read version; do
   format_version=$(echo ${version} | sed 's/\.//g')
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/wordpresses/${format_version} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_wordpresses_api.result
   WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
   if [[ $((WPSCAN_API_CALL_COUNT % WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
-    sleep 86400
+    sleep 86400 # WPSCAN API 100 リクエスト / 日 対応
   fi
 done
 echo -e "version\tfixed_in\ttitle" >${OUTDIR}/core_vuls.tsv
@@ -96,13 +100,13 @@ mysql --defaults-file=${MYCNF} -B -N -r -e 'select id, plugins from wp_mainwp_wp
 if [[ -f wpscan_plugins_api.result ]]; then
   rm -f ${OUTDIR}/wpscan_plugins_api.result
 fi
-cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list
+cat ${OUTDIR}/plugins.tsv | awk -F"\t" '{ print $2 }' | sed -e '1d' -e '/nodata/d' | sort | uniq >${OUTDIR}/plugin.list # 重複をマージ
 cat ${OUTDIR}/plugin.list | while read slug; do
   curl -s -H "Authorization: Token token=${WPSCAN_API_KEY}" ${WPSCAN_URL}/plugins/${slug} |
     sed 's/\\\u\(....\)/\&#x\1;/g' | nkf --numchar-input -w | jq -c >>${OUTDIR}/wpscan_plugins_api.result
   WPSCAN_API_CALL_COUNT=$((WPSCAN_API_CALL_COUNT + 1))
   if [[ $((WPSCAN_API_CALL_COUNT % WPSCAN_API_CALL_LIMIT)) == 0 ]]; then
-    sleep 86400
+    sleep 86400 # WPSCAN API 100 リクエスト / 日 対応
   fi
 done
 echo -e "slug\tlatest\tfixed_in\ttitle\tcve_id" >${OUTDIR}/plugin_vuls.tsv.tmp
@@ -179,6 +183,11 @@ if [[ -f ${OUTDIR}/vulnerabilities.tsv ]]; then
   rm -f ${OUTDIR}/vulnerabilities.tsv
 fi
 while IFS=$'\t' read -r wpid name url; do
+  while IFS=$'\t' read -r ex_wpid ex_name ex_url; do
+    if [[ wpid == ex_wpid ]]; then
+      continue
+    fi
+  done < <(cat ${OUTDIR}/exclude_list.tsv | sed '1d')
   while IFS=$'\t' read -r cores_wpid cores_version; do
     if [[ ${cores_wpid} == ${wpid} ]]; then
       core_version=${cores_version}
