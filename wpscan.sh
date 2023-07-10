@@ -184,7 +184,7 @@ if [[ -f ${OUTDIR}/vulnerabilities.tsv ]]; then
 fi
 while IFS=$'\t' read -r wpid name url; do
   while IFS=$'\t' read -r ex_wpid ex_name ex_url; do
-    if [[ wpid == ex_wpid ]]; then
+    if [[ ${wpid} == ${ex_wpid} ]]; then
       continue
     fi
   done < <(cat ${OUTDIR}/exclude_list.tsv | sed '1d')
