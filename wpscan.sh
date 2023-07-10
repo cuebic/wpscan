@@ -183,11 +183,16 @@ if [[ -f ${OUTDIR}/vulnerabilities.tsv ]]; then
   rm -f ${OUTDIR}/vulnerabilities.tsv
 fi
 while IFS=$'\t' read -r wpid name url; do
+  skip=0
   while IFS=$'\t' read -r ex_wpid ex_name ex_url; do
     if [[ ${wpid} == ${ex_wpid} ]]; then
-      continue
+      skip=1
+      break
     fi
   done < <(cat ${OUTDIR}/exclude_list.tsv | sed '1d')
+  if [[ ${skip} == 1 ]]; then
+    continue
+  fi
   while IFS=$'\t' read -r cores_wpid cores_version; do
     if [[ ${cores_wpid} == ${wpid} ]]; then
       core_version=${cores_version}
