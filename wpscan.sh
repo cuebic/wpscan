@@ -164,11 +164,8 @@ cat ${OUTDIR}/cve_api.result | while read -r line; do
   if [[ ${items} == "null" ]]; then
     continue
   fi
-  score=$(echo ${line} | jq .\"$cve\" | jq -r '.result.CVE_Items[].impact.baseMetricV3.cvssV3.baseScore')
-  if [[ ${score} == "null" ]]; then
-    score=$(echo ${line} | jq .\"$cve\" | jq -r '.result.CVE_Items[].impact.baseMetricV2.cvssV2.baseScore')
-  fi
-  if [[ ${score} == "null" ]]; then
+  score=$(echo ${line} | jq .\"$cve\" | jq -R '.result.CVE_Items[].impact.baseMetricV3.cvssV3.baseScore')
+  if [[ ${score} == "null" || "${score}x" == "x" ]]; then
     score="nodata"
   fi
   echo -e "${cve}\t${score}" >>${OUTDIR}/cve.tsv.tmp
