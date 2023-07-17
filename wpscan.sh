@@ -148,14 +148,18 @@ rm -f ${OUTDIR}/plugin_vuls.tsv.tmp
 ##############################
 ## cve.tsv
 ##############################
-if [[ -f cve_api.result ]]; then
+if [[ -f ${OUTDIR}/cve_api.result ]]; then
   rm -f ${OUTDIR}/cve_api.result
 fi
 cat ${OUTDIR}/plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nodata/d' -e '/^$/d' | sort | uniq |
   while read cve; do
-    echo $(curl -s "${CVE_URL}/CVE-${cve}?apiKey=${NVD_API_KEY}") | sed 's/\\\u\(....\)/\&#x\1;/g' |
-      nkf --numchar-input -w | jq -cr --arg cve "${cve}" '{($cve): .}' >>${OUTDIR}/cve_api.result
-    sleep 6 # https://nvd.nist.gov/general/news/API-Key-Announcement
+    res_json=$(curl -s "${CVE_URL}/CVE-${cve}?apiKey=${NVD_API_KEY}")
+    echo ${res_json} | jq -r
+    if [[ $? == 0 ]]; then
+      echo ${res_json} | sed 's/\\\u\(....\)/\&#x\1;/g' |
+        nkf --numchar-input -w | jq -Rcr --arg cve "${cve}" '{($cve): .}' >>${OUTDIR}/cve_api.result
+      sleep 6 # https://nvd.nist.gov/general/news/API-Key-Announcement
+    fi
   done
 echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv.tmp
 cat ${OUTDIR}/cve_api.result | while read -r line; do
