@@ -161,7 +161,6 @@ cat ${OUTDIR}/plugin_vuls.tsv | awk -F"\t" '{ print $5 }' | sed -e '1d' -e '/nod
       sleep 6 # https://nvd.nist.gov/general/news/API-Key-Announcement
     fi
   done
-echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv.tmp
 cat ${OUTDIR}/cve_api.result | while read -r line; do
   cve=$(echo ${line} | jq -rs '.[] | keys[]')
   items=$(echo ${line} | jq .\"${cve}\" | jq -r '.result.CVE_Items')
@@ -174,7 +173,8 @@ cat ${OUTDIR}/cve_api.result | while read -r line; do
   fi
   echo -e "${cve}\t${score}" >>${OUTDIR}/cve.tsv.tmp
 done
-sort ${OUTDIR}/cve.tsv.tmp | uniq >${OUTDIR}/cve.tsv
+echo -e "cve_id\tscore" >${OUTDIR}/cve.tsv
+sort ${OUTDIR}/cve.tsv.tmp | uniq >>${OUTDIR}/cve.tsv
 rm -f ${OUTDIR}/cve.tsv.tmp
 
 ##############################
