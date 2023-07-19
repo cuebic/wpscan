@@ -174,7 +174,7 @@ cat ${OUTDIR}/cve_api.result | while read -r line; do
   fi
   echo -e "${cve}\t${score}" >>${OUTDIR}/cve.tsv.tmp
 done
-sort ${OUTDIR}/cve.tsv.tmp | uniq >cve.tsv
+sort ${OUTDIR}/cve.tsv.tmp | uniq >${OUTDIR}/cve.tsv
 rm -f ${OUTDIR}/cve.tsv.tmp
 
 ##############################
