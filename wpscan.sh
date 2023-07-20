@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e -o pipefail
+#set -e -o pipefail
 
 CVE_URL="https://services.nvd.nist.gov/rest/json/cve/1.0"
 WPSCAN_URL="https://wpscan.com/api/v3"
